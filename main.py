@@ -68,7 +68,7 @@ def game_loop(screen: Surface, font: Font) -> int:
     state, player, scroll_y, clock, running = init_game_state()
     while running and not state.is_game_over:
         state, player, scroll_y, running = game_tick(state, player, scroll_y, screen, font, clock)
-    show_game_over(screen, font, state)
+    show_game_over(screen, font, state, clock)
     return state.score
 
 
@@ -93,7 +93,7 @@ def game_tick(state: GameState, player: Player, scroll_y: float, screen: Surface
     state = generate_new_platforms(state)
     state = remove_offscreen_platforms(state)
     state = check_player_fall(player, state)
-    render_game(screen, font, state, player, scroll_y)
+    render_game(screen, font, state, player, scroll_y, clock)
     clock.tick(60)
     return state, player, scroll_y, running
 
@@ -115,16 +115,16 @@ def handle_collisions(state: GameState, player: Player, scroll_y: float) -> tupl
     return state, player
 
 
-def render_game(screen: Surface, font: Font, state: GameState, player: Player, scroll_y: float) -> None:
+def render_game(screen: Surface, font: Font, state: GameState, player: Player, scroll_y: float, clock: pygame.time.Clock) -> None:
     screen.fill((255, 255, 255))
     draw_platforms(screen, state.platforms)
     draw_player(screen, player)
-    draw_hud(screen, font, state.score + int(scroll_y), state.player.powerups)
+    draw_hud(screen, font, state.score + int(scroll_y), state.player.powerups, clock)
     pygame.display.flip()
 
 
-def show_game_over(screen: Surface, font: Font, state: GameState) -> None:
-    draw_game_over(screen, font, state.score, state.score)
+def show_game_over(screen: Surface, font: Font, state: GameState, clock: pygame.time.Clock) -> None:
+    draw_game_over(screen, font, state.score, state.score, clock)
     pygame.display.flip()
     waiting = True
     while waiting:
@@ -143,8 +143,9 @@ def main() -> None:
     pygame.init()
     screen: Surface = pygame.display.set_mode((400, 600))
     font: Font = pygame.font.SysFont('Arial', 32)
+    clock = pygame.time.Clock()
     while True:
-        draw_main_menu(screen, font)
+        draw_main_menu(screen, font, clock)
         pygame.display.flip()
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -152,7 +153,7 @@ def main() -> None:
                 return
             if event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
                 score = game_loop(screen, font)
-                draw_game_over(screen, font, score, score)
+                draw_game_over(screen, font, score, score, clock)
                 pygame.display.flip()
                 pygame.time.wait(2000)
                 break

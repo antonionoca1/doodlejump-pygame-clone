@@ -2,6 +2,7 @@
 import pygame
 from pygame.surface import Surface
 from pygame.font import Font
+from ui.debug_info import draw_debug_info
 
 def wrap_text(text: str, font: Font, max_width: int) -> list[str]:
     words = text.split(' ')
@@ -18,7 +19,7 @@ def wrap_text(text: str, font: Font, max_width: int) -> list[str]:
         lines.append(current)
     return lines
 
-def draw_game_over(screen: Surface, font: Font, score: int, high_score: int) -> None:
+def draw_game_over(screen: Surface, font: Font, score: int, high_score: int, clock: pygame.time.Clock) -> None:
     screen.fill((255, 255, 255))
     # Use a larger font for the title
     title_font = pygame.font.Font(None, 64)
@@ -39,5 +40,5 @@ def draw_game_over(screen: Surface, font: Font, score: int, high_score: int) -> 
         for line in wrap_text(text, menu_font, 400):
             rendered = menu_font.render(line, True, (0, 0, 0))
             screen.blit(rendered, (60, y))
-            y += 40  # Increased spacing
-        y += 10  # Extra space between sentences
+            y += 30  # Increased spacing
+    draw_debug_info(screen, clock)
