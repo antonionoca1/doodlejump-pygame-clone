@@ -20,8 +20,12 @@ def wrap_text(text: str, font: Font, max_width: int) -> list[str]:
 
 def draw_main_menu(screen: Surface, font: Font) -> None:
     screen.fill((255, 255, 255))
-    title = font.render('Doodle Jump', True, (0, 0, 0))
-    screen.blit(title, (100, 100))
+    # Use a larger font for the title
+    title_font = pygame.font.Font(None, 64)
+    title = title_font.render('Doodle Jump', True, (0, 0, 0))
+    screen.blit(title, (100, 80))
+    # Use a slightly larger font for menu text
+    menu_font = pygame.font.Font(None, 36)
     controls = [
         'Controls:',
         'Left/Right Arrow or A/D: Move',
@@ -31,7 +35,8 @@ def draw_main_menu(screen: Surface, font: Font) -> None:
     ]
     y = 180
     for text in controls:
-        for line in wrap_text(text, font, 280):
-            rendered = font.render(line, True, (0, 0, 0))
+        for line in wrap_text(text, menu_font, 280):
+            rendered = menu_font.render(line, True, (0, 0, 0))
             screen.blit(rendered, (60, y))
-            y += 32
+            y += 40  # Increased spacing
+        y += 10  # Extra space between sentences

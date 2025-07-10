@@ -20,19 +20,24 @@ def wrap_text(text: str, font: Font, max_width: int) -> list[str]:
 
 def draw_game_over(screen: Surface, font: Font, score: int, high_score: int) -> None:
     screen.fill((255, 255, 255))
-    over_text = font.render('Game Over', True, (0, 0, 0))
-    score_text = font.render(f'Score: {score}', True, (0, 0, 0))
-    high_score_text = font.render(f'High Score: {high_score}', True, (0, 0, 0))
-    screen.blit(over_text, (100, 100))
-    screen.blit(score_text, (100, 150))
-    screen.blit(high_score_text, (100, 200))
+    # Use a larger font for the title
+    title_font = pygame.font.Font(None, 64)
+    over_text = title_font.render('Game Over', True, (0, 0, 0))
+    # Use a slightly larger font for other text
+    menu_font = pygame.font.Font(None, 36)
+    score_text = menu_font.render(f'Score: {score}', True, (0, 0, 0))
+    high_score_text = menu_font.render(f'High Score: {high_score}', True, (0, 0, 0))
+    screen.blit(over_text, (100, 80))
+    screen.blit(score_text, (100, 160))
+    screen.blit(high_score_text, (100, 210))
     instructions = [
         'Press R to restart the game.',
         'Press Esc to quit.'
     ]
-    y = 260
+    y = 280
     for text in instructions:
-        for line in wrap_text(text, font, 280):
-            rendered = font.render(line, True, (0, 0, 0))
+        for line in wrap_text(text, menu_font, 400):
+            rendered = menu_font.render(line, True, (0, 0, 0))
             screen.blit(rendered, (60, y))
-            y += 32
+            y += 40  # Increased spacing
+        y += 10  # Extra space between sentences
