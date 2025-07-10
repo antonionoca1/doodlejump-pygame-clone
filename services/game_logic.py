@@ -5,11 +5,6 @@ from domain.platform import Platform
 from domain.obstacle import Obstacle
 from domain.powerup import PowerUp
 
-def update_game_state(state: GameState, input_dir: int) -> GameState:
-    # ...existing code...
-    # (Stub for main game update loop)
-    return state
-
 def handle_platform_collision(state: GameState, idx: int) -> GameState:
     # Do not deactivate platforms after collision
     return state

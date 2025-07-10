@@ -93,6 +93,9 @@ def game_tick(state: GameState, player: Player, scroll_y: float, screen: Surface
     state = generate_new_platforms(state)
     state = remove_offscreen_platforms(state)
     state = check_player_fall(player, state)
+    # Update score based on max height achieved (lowest y value)
+    max_height = min(state.score, int(-player.y + 500)) if state.score else int(-player.y + 500)
+    state = state._replace(score=max_height)
     render_game(screen, font, state, player, scroll_y, clock)
     clock.tick(60)
     return state, player, scroll_y, running
@@ -104,7 +107,6 @@ def handle_collisions(state: GameState, player: Player, scroll_y: float) -> tupl
         player = player._replace(vy=-15)
         state = state._replace(player=player)
         state = handle_platform_collision(state, idx)
-        state = state._replace(score=state.score + 10)
     idx = check_obstacle_collision(player, state.obstacles)
     if idx is not None:
         state = handle_obstacle_collision(state, idx)
