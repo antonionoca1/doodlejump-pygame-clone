@@ -1,0 +1,1 @@
+* Organise the code using domain-driven-development principles. Create directories and files that reflect the domain of the application.

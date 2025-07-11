@@ -1,164 +1,144 @@
-# main.py
 import pygame
-from pygame.surface import Surface
-from pygame.font import Font
-from typing import Any
-from domain.player import create_player, Player
-from domain.platform import create_platform, Platform
-from domain.obstacle import Obstacle
-from domain.powerup import PowerUp
-from domain.game_state import create_initial_state, GameState
-from services.platform_factory import generate_platforms
-from services.obstacle_factory import generate_obstacles
-from services.powerup_factory import generate_powerups
-from services.player_service import move_player
-from services.game_logic import handle_platform_collision, handle_obstacle_collision, handle_powerup_collision
-from services.collision_service import check_platform_collision, check_obstacle_collision, check_powerup_collision
-from services.player_physics import apply_gravity, update_position
-from ui.main_menu import draw_main_menu
-from ui.hud import draw_hud
-from ui.game_over import draw_game_over
-from ui.high_scores import draw_high_scores
-from ui.player import draw_player
-from ui.platforms import draw_platforms
+import sys
+import random
 
-def process_events() -> bool:
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            return False
-    return True
-
-def get_horizontal_input() -> int:
-    keys = pygame.key.get_pressed()
-    if keys[pygame.K_LEFT] or keys[pygame.K_a]:
-        return -5
-    if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
-        return 5
-    return 0
-
-def update_vertical_scroll(player: Player, state: GameState, scroll_y: float) -> tuple[Player, GameState, float]:
-    if player.y < 250:
-        scroll = 250 - player.y
-        player = player._replace(y=250)
-        platforms = tuple(p._replace(y=p.y + scroll) for p in state.platforms)
-        obstacles = tuple(o._replace(y=o.y + scroll) for o in state.obstacles)
-        powerups = tuple(pu._replace(y=pu.y + scroll) for pu in state.powerups)
-        state = state._replace(platforms=platforms, obstacles=obstacles, powerups=powerups)
-        scroll_y += scroll
-    return player, state, scroll_y
-
-def generate_new_platforms(state: GameState) -> GameState:
-    highest_platform_y = min(p.y for p in state.platforms)
-    platforms = state.platforms
-    while highest_platform_y > 0:
-        new_platforms = generate_platforms(3, highest_platform_y)
-        platforms += new_platforms
-        highest_platform_y = min(p.y for p in platforms)
-    return state._replace(platforms=platforms)
-
-def remove_offscreen_platforms(state: GameState) -> GameState:
-    return state._replace(platforms=tuple(p for p in state.platforms if p.y < 600))
-
-def check_player_fall(player: Player, state: GameState) -> GameState:
-    if player.y > 600:
-        return state._replace(is_game_over=True)
-    return state
-
-def game_loop(screen: Surface, font: Font) -> int:
-    state, player, scroll_y, clock, running = init_game_state()
-    while running and not state.is_game_over:
-        state, player, scroll_y, running = game_tick(state, player, scroll_y, screen, font, clock)
-    show_game_over(screen, font, state, clock)
-    return state.score
+WIDTH, HEIGHT = 400, 600
+FPS = 60
 
 
-def init_game_state() -> tuple[GameState, Player, float, pygame.time.Clock, bool]:
-    player = create_player(200, 500)
-    start_platform = create_platform(player.x, player.y + 28, 'normal')
-    platforms = (start_platform,) + generate_platforms(9, 600)
-    obstacles = generate_obstacles(2, 600)
-    powerups = generate_powerups(1, 600)
-    state = create_initial_state(player, platforms, obstacles, powerups)
-    return state, player, 0, pygame.time.Clock(), True
+class Player:
+    def __init__(self, x, y):
+        self.rect = pygame.Rect(x, y, 40, 40)
+        self.vel_y = 0
+        self.max_height = y
+        self.total_ascended = 0
+
+    def update(self, keys, platforms, offset=0):
+        self.vel_y += 0.5
+        if keys[pygame.K_LEFT]:
+            self.rect.x -= 5
+        if keys[pygame.K_RIGHT]:
+            self.rect.x += 5
+        self.rect.y += int(self.vel_y)
+        for plat in platforms.platforms:
+            if self.rect.colliderect(plat) and self.vel_y > 0:
+                self.vel_y = -13
+        self.max_height = min(self.max_height, self.rect.y)
+        self.total_ascended += offset
+
+    def get_score(self):
+        return self.total_ascended
+
+    def get_height(self):
+        return HEIGHT - self.rect.y
+
+    def draw(self, screen):
+        pygame.draw.rect(screen, (0, 200, 0), self.rect)
+
+    def is_game_over(self, screen_height):
+        return self.rect.y > screen_height
 
 
-def game_tick(state: GameState, player: Player, scroll_y: float, screen: Surface, font: Font, clock: pygame.time.Clock) -> tuple[GameState, Player, float, bool]:
-    running = process_events()
-    dx = get_horizontal_input()
-    player = move_player(state.player, dx)
-    player = apply_gravity(player, 0.5)
-    player = update_position(player)
-    player, state, scroll_y = update_vertical_scroll(player, state, scroll_y)
-    state, player = handle_collisions(state, player, scroll_y)
-    state = generate_new_platforms(state)
-    state = remove_offscreen_platforms(state)
-    state = check_player_fall(player, state)
-    # Update score based on max height achieved (lowest y value)
-    max_height = min(state.score, int(-player.y + 500)) if state.score else int(-player.y + 500)
-    state = state._replace(score=max_height)
-    render_game(screen, font, state, player, scroll_y, clock)
-    clock.tick(60)
-    return state, player, scroll_y, running
+class PlatformManager:
+    def __init__(self, width, height, player_rect=None):
+        self.platforms = []
+        # First platform just below the player
+        if player_rect:
+            self.platforms.append(pygame.Rect(player_rect.x, player_rect.y + player_rect.height + 5, 60, 10))
+        # Remaining platforms
+        for i in range(6):
+            self.platforms.append(
+                pygame.Rect(random.randint(0, width - 60), height - (i + 1) * 100, 60, 10)
+            )
+        self.width = width
+        self.height = height
+
+    def update(self, player):
+        offset = 0
+        if player.rect.y < self.height // 2:
+            offset = self.height // 2 - player.rect.y
+            player.rect.y = self.height // 2
+            for plat in self.platforms:
+                plat.y += offset
+        self.platforms = [plat for plat in self.platforms if plat.y < self.height]
+        while len(self.platforms) < 7:
+            new_y = self.platforms[-1].y - 100
+            self.platforms.append(
+                pygame.Rect(random.randint(0, self.width - 60), new_y, 60, 10)
+            )
+        return offset
+
+    def draw(self, screen):
+        for plat in self.platforms:
+            pygame.draw.rect(screen, (200, 200, 0), plat)
 
 
-def handle_collisions(state: GameState, player: Player, scroll_y: float) -> tuple[GameState, Player]:
-    idx = check_platform_collision(player, state.platforms)
-    if idx is not None:
-        player = player._replace(vy=-15)
-        state = state._replace(player=player)
-        state = handle_platform_collision(state, idx)
-    idx = check_obstacle_collision(player, state.obstacles)
-    if idx is not None:
-        state = handle_obstacle_collision(state, idx)
-    idx = check_powerup_collision(player, state.powerups)
-    if idx is not None:
-        state = handle_powerup_collision(state, idx)
-    state = state._replace(player=player)
-    return state, player
+def draw_hud(screen, score, clock):
+    font = pygame.font.Font(None, 24)
+    score_text = font.render(f"Score: {score}", True, (0, 0, 0))
+    screen.blit(score_text, (10, 10))
+    fps_text = font.render(f"FPS: {clock.get_fps():.1f}", True, (0, 0, 0))
+    screen.blit(fps_text, (10, 40))
 
 
-def render_game(screen: Surface, font: Font, state: GameState, player: Player, scroll_y: float, clock: pygame.time.Clock) -> None:
+def show_main_menu(screen):
+    font = pygame.font.Font(None, 48)
+    menu_text = font.render("Press Enter to Start", True, (0, 0, 0))
     screen.fill((255, 255, 255))
-    draw_platforms(screen, state.platforms)
-    draw_player(screen, player)
-    draw_hud(screen, font, state.score + int(scroll_y), state.player.powerups, clock)
+    screen.blit(menu_text, (60, HEIGHT // 2 - 24))
     pygame.display.flip()
-
-
-def show_game_over(screen: Surface, font: Font, state: GameState, clock: pygame.time.Clock) -> None:
-    draw_game_over(screen, font, state.score, state.score, clock)
-    pygame.display.flip()
-    waiting = True
-    while waiting:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                exit()
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_r:
-                    waiting = False
-                if event.key == pygame.K_ESCAPE:
-                    pygame.quit()
-                    exit()
-
-def main() -> None:
-    pygame.init()
-    screen: Surface = pygame.display.set_mode((400, 600))
-    font: Font = pygame.font.SysFont('Arial', 32)
-    clock = pygame.time.Clock()
     while True:
-        draw_main_menu(screen, font, clock)
-        pygame.display.flip()
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                pygame.quit()
-                return
+                return False
             if event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
-                score = game_loop(screen, font)
-                draw_game_over(screen, font, score, score, clock)
-                pygame.display.flip()
-                pygame.time.wait(2000)
-                break
+                return True
 
-if __name__ == '__main__':
+
+def show_game_over(screen, score):
+    font = pygame.font.Font(None, 48)
+    over_text = font.render("Game Over", True, (200, 0, 0))
+    score_text = font.render(f"Score: {score}", True, (0, 0, 0))
+    screen.fill((255, 255, 255))
+    screen.blit(over_text, (100, HEIGHT // 2 - 48))
+    screen.blit(score_text, (100, HEIGHT // 2))
+    pygame.display.flip()
+    pygame.time.wait(2000)
+
+
+def init_pygame():
+    pygame.init()
+    return pygame.display.set_mode((WIDTH, HEIGHT)), pygame.time.Clock()
+
+
+def main():
+    screen, clock = init_pygame()
+    if not show_main_menu(screen):
+        pygame.quit()
+        sys.exit()
+    player = Player(WIDTH // 2, HEIGHT - 100)
+    platforms = PlatformManager(WIDTH, HEIGHT, player.rect)
+    score = 0
+    running = True
+    while running:
+        clock.tick(FPS)
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+        keys = pygame.key.get_pressed()
+        offset = platforms.update(player)
+        player.update(keys, platforms, offset)
+        score = player.get_score()
+        screen.fill((135, 206, 250))
+        platforms.draw(screen)
+        player.draw(screen)
+        draw_hud(screen, score, clock)
+        pygame.display.flip()
+        if player.is_game_over(HEIGHT):
+            running = False
+    show_game_over(screen, score)
+    pygame.quit()
+
+
+if __name__ == "__main__":
     main()
