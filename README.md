@@ -20,6 +20,8 @@ A simple, addictive vertical platformer game implemented in Python using Pygame.
 
 - **Left Arrow:** Move left
 - **Right Arrow:** Move right
+- **R:** Restart the game from the game over screen
+- **ESC:** Quit the game from any screen
 
 ## Requirements
 
