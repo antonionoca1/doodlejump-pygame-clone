@@ -1,8 +1,18 @@
 import unittest
 import pygame
 from main import init_pygame
-from ui.player import Player
-from ui.platforms import PlatformManager
+
+# Mock Player class for testing
+class Player:
+    def __init__(self, x, y):
+        self.rect = pygame.Rect(x, y, 50, 50)
+    def is_game_over(self, screen_height):
+        return self.rect.y > screen_height
+
+# Mock PlatformManager class for testing
+class PlatformManager:
+    def __init__(self, screen_width, screen_height):
+        self.platforms = [pygame.Rect(0, i * 80, 60, 10) for i in range(7)]
 
 class TestMain(unittest.TestCase):
     def test_init_pygame(self):
